@@ -3,14 +3,23 @@
 
 target 'Messenger' do
   use_frameworks!
+  
+  #Firebase
   pod 'Firebase/Core'
   pod 'Firebase/Auth'
   pod 'Firebase/Database'
+  pod 'Firebase/Storage'
   
   #Facebook
   pod 'FBSDKLoginKit'
   
   #Google
   pod 'GoogleSignIn'
+  
+  #Ultility
+  pod 'MessageKit'
+  pod 'JGProgressHUD'
+  pod 'RealmSwift'
+  pod 'SDWebImage'
     
 end

@@ -7,7 +7,7 @@
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
-        <!--Chat-->
+        <!--Chats-->
         <scene sceneID="tne-QT-ifu">
             <objects>
                 <viewController id="BYZ-38-t0r" customClass="ConversationsViewController" customModule="Messenger" customModuleProvider="target" sceneMemberID="viewController">
@@ -17,7 +17,7 @@
                         <color key="backgroundColor" systemColor="systemBackgroundColor" cocoaTouchSystemColor="whiteColor"/>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                     </view>
-                    <navigationItem key="navigationItem" title="Chat" id="pvg-ha-kzL"/>
+                    <navigationItem key="navigationItem" title="Chats" id="pvg-ha-kzL"/>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
             </objects>
@@ -41,11 +41,11 @@
             </objects>
             <point key="canvasLocation" x="-2074" y="9"/>
         </scene>
-        <!--Chat-->
+        <!--Chats-->
         <scene sceneID="i6F-R1-E3d">
             <objects>
                 <navigationController automaticallyAdjustsScrollViewInsets="NO" id="hG0-6h-LRI" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Chat" id="GVt-M0-Ckk"/>
+                    <tabBarItem key="tabBarItem" title="Chats" selectedImage="message.fill" catalog="system" id="GVt-M0-Ckk"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="m0V-GF-Gcu">
                         <rect key="frame" x="0.0" y="44" width="414" height="96"/>
@@ -111,4 +111,7 @@
             <point key="canvasLocation" x="-1604" y="737"/>
         </scene>
     </scenes>
+    <resources>
+        <image name="message.fill" catalog="system" width="128" height="113"/>
+    </resources>
 </document>

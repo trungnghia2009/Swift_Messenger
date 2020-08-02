@@ -19,10 +19,16 @@ struct ChatAppUser {
                                     .replacingOccurrences(of: "@", with: "-")
         return safeEmail
     }
+    
+    var profilePictureFileName: String {
+        //nghia-gmail-com_profile_picture.png
+        return "\(safeEmail)_profile_picture.png"
+    }
 }
 
 final class DatabaseManager {
     static let shared = DatabaseManager()
+    private init() {}
     private let database = Database.database().reference()
     
 }
@@ -48,11 +54,20 @@ extension DatabaseManager {
     }
     
     /// Insert new user to database
-    public func insertUser(with user: ChatAppUser) {
+    public func insertUser(with user: ChatAppUser, completion: @escaping((Bool) -> Void) ) {
         database.child(user.safeEmail).setValue([
             "first_name": user.firstName,
             "last_name": user.lastName,
-        ])
+        ], withCompletionBlock: { (error, _) in
+            guard error == nil else {
+                print("Failed to write to database")
+                completion(false)
+                return
+            }
+            
+            completion(true)
+            
+        })
     }
 }
 
