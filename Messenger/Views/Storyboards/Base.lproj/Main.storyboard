@@ -95,7 +95,7 @@
         <scene sceneID="QDQ-J1-v8T">
             <objects>
                 <navigationController automaticallyAdjustsScrollViewInsets="NO" id="d18-8N-KL4" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Profile" id="gjf-LA-NmT"/>
+                    <tabBarItem key="tabBarItem" title="Profile" selectedImage="person.fill" catalog="system" id="gjf-LA-NmT"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="zGz-7d-QOy">
                         <rect key="frame" x="0.0" y="44" width="414" height="96"/>
@@ -113,5 +113,6 @@
     </scenes>
     <resources>
         <image name="message.fill" catalog="system" width="128" height="113"/>
+        <image name="person.fill" catalog="system" width="128" height="120"/>
     </resources>
 </document>

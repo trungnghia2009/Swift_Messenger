@@ -232,7 +232,7 @@ class RegisterViewController: UIViewController {
                     if success {
                         // upload image
                         guard let image = self.imageView.image,
-                            let data = image.pngData() else { return }
+                            let data = image.jpegData(compressionQuality: 1) else { return }
                         
                         let fileName = chatUser.profilePictureFileName
                         StorageManager.shared.uploadProfilePicture(with: data, fileName: fileName) { (result) in
@@ -316,7 +316,7 @@ extension RegisterViewController: UIImagePickerControllerDelegate, UINavigationC
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         picker.dismiss(animated: true, completion: nil)
         let selectedImage = info[UIImagePickerController.InfoKey.editedImage] as? UIImage
-        self.imageView.image = selectedImage
+        self.imageView.image = selectedImage?.resizeWithWidth(width: 200)
         
     }
     

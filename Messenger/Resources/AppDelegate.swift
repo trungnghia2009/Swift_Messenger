@@ -64,6 +64,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, GIDSignInDelegate {
                 return
         }
         
+        UserDefaults.standard.set("\(firstName) \(lastName)", forKey: "name") // Store fullname
+        
         DatabaseManager.shared.userExists(with: email) { (exists) in
             if !exists {
                 //insert to database

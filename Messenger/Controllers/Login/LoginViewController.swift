@@ -209,6 +209,21 @@ class LoginViewController: UIViewController {
                 return
             }
             
+            // Store fullname
+            let safeEmail = DatabaseManager.shared.safeEmail(email: email)
+            DatabaseManager.shared.getDataFor(path: safeEmail) { (result) in
+                switch result {
+                case .success(let data):
+                    guard let userData = data as? [String: Any],
+                        let firstName = userData["first_name"] as? String,
+                        let lastName = userData["last_name"] as? String
+                    else { return }
+                    UserDefaults.standard.set("\(firstName) \(lastName)", forKey: "name") // store fullname
+                case .failure(let error):
+                    print("Failed to read data from firebase, \(error)")
+                }
+            }
+            
             let user = result.user
             print("Logged In user: \(user)")
             self.navigationController?.dismiss(animated: true)
@@ -265,7 +280,7 @@ extension LoginViewController: LoginButtonDelegate {
                     return
             }
             
-            print("Profile picture url from facebook: \(pictureUrl)")
+            UserDefaults.standard.set("\(firstName) \(lastName)", forKey: "name") // Store fullname
             
             DatabaseManager.shared.userExists(with: email) { (exists) in
                 if !exists {

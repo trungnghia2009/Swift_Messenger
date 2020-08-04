@@ -10,6 +10,7 @@ import UIKit
 import FirebaseAuth
 import FBSDKLoginKit
 import GoogleSignIn
+import SDWebImage
 
 private let reuseIdentifier = "cell"
 
@@ -17,7 +18,8 @@ class ProfileViewController: UIViewController {
     
     // MARK: - Properties
     @IBOutlet weak var tableView: UITableView!
-    let data = ["Log Out"]
+    private let email = FirebaseAuth.Auth.auth().currentUser?.email
+    private let data = ["Log Out"]
     
     // MARK: - Lifecycle
     override func viewDidLoad() {
@@ -29,6 +31,7 @@ class ProfileViewController: UIViewController {
     private func configureTableView() {
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: reuseIdentifier)
         tableView.tableFooterView = UIView()
+        tableView.tableHeaderView = createTableHeader()
         tableView.delegate = self
         tableView.dataSource = self
     }
@@ -47,6 +50,56 @@ class ProfileViewController: UIViewController {
         let nav = UINavigationController(rootViewController: vc)
         nav.modalPresentationStyle = .fullScreen
         present(nav, animated: true)
+    }
+    
+    private func createTableHeader() -> UIView? {
+        guard let email = email else { return nil }
+        let safeEmail = DatabaseManager.shared.safeEmail(email: email)
+        let fileName = safeEmail + "_profile_picture.png"
+        let path = "images/" + fileName
+        
+        let headerView = UIView(frame: CGRect(x: 0,
+                                        y: 0,
+                                        width: self.view.width,
+                                        height: 300))
+        headerView.backgroundColor = .link
+        let imageView = UIImageView(frame: CGRect(x: (headerView.width - 150) / 2,
+                                                  y: 75,
+                                                  width: 150,
+                                                  height: 150))
+        imageView.contentMode = .scaleToFill
+        imageView.backgroundColor = .white
+        imageView.layer.cornerRadius = 75
+        imageView.layer.borderColor = UIColor.white.cgColor
+        imageView.layer.borderWidth = 3
+        imageView.layer.masksToBounds = true
+        headerView.addSubview(imageView)
+        
+        StorageManager.shared.downloadURL(for: path) { [weak self](result) in
+            switch result {
+            case .success(let url):
+                self?.downloadImage(imageView: imageView, url: url)
+                //imageView.sd_setImage(with: url)
+            case .failure(let error):
+                print("Failed to get download url, \(error.localizedDescription)")
+            }
+        }
+        
+        return headerView
+    }
+    
+    private func downloadImage(imageView: UIImageView, url: URL) {
+        URLSession.shared.dataTask(with: url) { (data, _, error) in
+            guard let data = data, error == nil else {
+                print("Failed to get data")
+                return
+            }
+            
+            let image = UIImage(data: data)
+            DispatchQueue.main.async {
+                imageView.image = image
+            }
+        }.resume()
     }
 
 }
