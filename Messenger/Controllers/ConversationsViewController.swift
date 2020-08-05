@@ -83,7 +83,7 @@ class ConversationsViewController: UIViewController {
             }
         }
     }
-    
+     
     private func validateAuth() {
         if FirebaseAuth.Auth.auth().currentUser == nil {
             let vc = LoginViewController()
@@ -95,7 +95,7 @@ class ConversationsViewController: UIViewController {
     
     private func configureTableView() {
         tableView.isHidden = true
-        tableView.register(ConversationTableViewCell.self, forCellReuseIdentifier: ConversationTableViewCell.reuseIdentifier)
+        tableView.register(ConversationCell.self, forCellReuseIdentifier: ConversationCell.reuseIdentifier)
         tableView.delegate = self
         tableView.dataSource = self
     }
@@ -111,8 +111,9 @@ class ConversationsViewController: UIViewController {
                                                             action: #selector(didTapComposeButton))
     }
     
-    private func createNewConversation(result: [String: String]) {
-        guard let name = result["name"], let email = result["email"] else { return }
+    private func createNewConversation(result: SearchResult) {
+        let name = result.name
+        let email = result.email
         
         let vc = ChatViewController(with: email, id: nil)
         vc.isNewConveration = true
@@ -141,7 +142,7 @@ extension ConversationsViewController: UITableViewDataSource{
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let model = conversations[indexPath.row]
-        let cell = tableView.dequeueReusableCell(withIdentifier: ConversationTableViewCell.reuseIdentifier, for: indexPath) as! ConversationTableViewCell
+        let cell = tableView.dequeueReusableCell(withIdentifier: ConversationCell.reuseIdentifier, for: indexPath) as! ConversationCell
         cell.configure(with: model)
         return cell
     }

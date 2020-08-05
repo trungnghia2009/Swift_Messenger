@@ -9,6 +9,7 @@
 import Foundation
 import FirebaseDatabase
 import FirebaseAuth
+import MessageKit
 
 struct UploadMessage {
     let id: String
@@ -380,28 +381,62 @@ extension DatabaseManager {
                 return
             }
             
+            print("Messages Input: \(value.count)")
+            
             let messages: [Message] = value.compactMap({ dictionary in
                 guard let name = dictionary["name"] as? String,
-                    let isRead = dictionary["is_read"] as? Bool,
+                    //let isRead = dictionary["is_read"] as? Bool,
                     let messageId = dictionary["id"] as? String,
                     let content = dictionary["content"] as? String,
                     let dateString = dictionary["date"] as? String,
                     let date = ChatViewController.dateFormatter.date(from: dateString),
                     let senderEmail = dictionary["sender_email"] as? String,
-                    let type = dictionary["type"]
-                else { return nil}
-                
+                    let type = dictionary["type"] as? String
+                else { return nil }
+
+                // Define message kind
+                var kind: MessageKind?
+                switch type {
+                case "text":
+                    kind = .text(content)
+                case "photo":
+                    guard let url = URL(string: content),
+                        let placeholder = UIImage(systemName: "questionmark.diamond")
+                    else { return nil }
+
+                    let media = Media(url: url,
+                                      image: nil,
+                                      placeholderImage: placeholder,
+                                      size: CGSize(width: 300, height: 300))
+                    kind = .photo(media)
+                case "video":
+                    guard let url = URL(string: content),
+                        let placeholder = UIImage(named: "video_placeholder")
+                    else { return nil }
+
+                    let media = Media(url: url,
+                                      image: nil,
+                                      placeholderImage: placeholder,
+                                      size: CGSize(width: 200, height: 150))
+                    kind = .video(media)
+                default:
+                    kind = . text(content)
+                }
+                guard let finalKind = kind else { return nil}
+
+
                 let sender = Sender(photoURL: "",
                                     senderId: senderEmail,
                                     displayName: name)
-                
+
                 return Message(sender: sender,
                                messageId: messageId,
                                sentDate: date,
-                               kind: .text(content))
-                
+                               kind: finalKind)
+
             })
             
+            print("Messages out: \(messages.count)")
             completion(.success(messages))
             
         }
@@ -430,10 +465,14 @@ extension DatabaseManager {
                 message = messageText
             case .attributedText(_):
                 break
-            case .photo(_):
-                break
-            case .video(_):
-                break
+            case .photo(let mediaItem):
+                if let targetUrlString = mediaItem.url?.absoluteString {
+                    message = targetUrlString
+                }
+            case .video(let mediaItem):
+                if let targetUrlString = mediaItem.url?.absoluteString {
+                    message = targetUrlString
+                }
             case .location(_):
                 break
             case .emoji(_):

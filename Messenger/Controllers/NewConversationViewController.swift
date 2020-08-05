@@ -8,6 +8,12 @@
 
 import UIKit
 import JGProgressHUD
+import FirebaseAuth
+
+struct SearchResult {
+    let name: String
+    let email: String
+}
 
 private let reuseIdentifier = "New Conversation Cell"
 
@@ -15,14 +21,14 @@ class NewConversationViewController: UIViewController {
 
     // MARK: - Properties
     private var users = [[String: String]]()
-    private var usersFilter = [[String: String]]()
+    private var results = [SearchResult]()
     private var hasFetched = false
     
     private let spinner = JGProgressHUD(style: .dark)
     private let searchBar = UISearchBar()
     private let tableView = UITableView()
     
-    var completion: (([String: String]) -> Void)?  //Use closure for callBack
+    var completion: ((SearchResult) -> Void)?  //Use closure for callBack
     
     private let noResultLabel: UILabel = {
         let label = UILabel()
@@ -80,7 +86,7 @@ class NewConversationViewController: UIViewController {
         tableView.isHidden = true
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: reuseIdentifier)
+        tableView.register(NewConversationCell.self, forCellReuseIdentifier: NewConversationCell.reuseIdentifier)
     }
     
     // MARK: - Selectors
@@ -99,9 +105,9 @@ extension NewConversationViewController: UISearchBarDelegate {
         }
         
         searchBar.resignFirstResponder()
-        usersFilter.removeAll()
+        results.removeAll()
         spinner.show(in: view)
-        self.searchUsers(query: text)
+        searchUsers(query: text)
     }
     
     func searchUsers(query: String) {
@@ -127,23 +133,31 @@ extension NewConversationViewController: UISearchBarDelegate {
     
     func filterUsers(with term: String) {
         spinner.dismiss()
-        guard hasFetched else { return }
+        guard let currentUserEmail = FirebaseAuth.Auth.auth().currentUser?.email,
+            hasFetched else { return }
+        let safeEmail = DatabaseManager.shared.safeEmail(email: currentUserEmail)
         
-        let results = users.filter({
-            guard var name = $0["name"]?.lowercased() else {
-                return false
-            }
+        let results: [SearchResult] = users.filter({
+            // Do not show current user
+            guard let email = $0["email"], email != safeEmail else { return false }
+            
+            // Get search keyword
+            guard var name = $0["name"]?.lowercased() else { return false }
             
             name = name.forSorting
             return name.localizedCaseInsensitiveContains(term)
+        }).compactMap({
+            guard let email = $0["email"],
+                let name = $0["name"] else { return nil}
+            return SearchResult(name: name, email: email)
         })
         
-        self.usersFilter = results
+        self.results = results
         updateUI()
     }
     
     func updateUI() {
-        if usersFilter.isEmpty {
+        if results.isEmpty {
             noResultLabel.isHidden = false
             tableView.isHidden = true
         } else {
@@ -157,22 +171,26 @@ extension NewConversationViewController: UISearchBarDelegate {
 // MARK: - UITableViewDataSource, UITableViewDelegate
 extension NewConversationViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return usersFilter.count
+        return results.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: reuseIdentifier, for: indexPath)
-        cell.textLabel?.text = usersFilter[indexPath.row]["name"]
+        let model = results[indexPath.row]
+        let cell = tableView.dequeueReusableCell(withIdentifier: NewConversationCell.reuseIdentifier, for: indexPath) as! NewConversationCell
+        cell.configure(with: model)
         return cell
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         // start conversation
-        let targetUserData = usersFilter[indexPath.row]
+        let targetUserData = results[indexPath.row]
         dismiss(animated: true) { [weak self] in
             self?.completion?(targetUserData)
         }
-        
+    }
+    
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return 70
     }
 }
