@@ -128,7 +128,7 @@ extension ProfileViewController: UITableViewDelegate {
         
         switch selectedCell {
         case "Log Out":
-            showAlert(message: "Do you want to log out ?") { [weak self] (_) in
+            showAlert(message: "Do you want to log out ?") { _ in
                 
                 // Logout facebook
                 FBSDKLoginKit.LoginManager().logOut()
@@ -138,7 +138,7 @@ extension ProfileViewController: UITableViewDelegate {
                 
                 do {
                     try FirebaseAuth.Auth.auth().signOut()
-                    self?.presentLoginController()
+                    PresenterManager.shared.show(vc: .loginController)
                 } catch {
                     print("Failed to log out, \(error.localizedDescription)")
                 }

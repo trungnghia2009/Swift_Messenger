@@ -88,8 +88,8 @@ class LoginViewController: UIViewController {
         super.viewDidLoad()
         
         // Notification for passing data
-        loginObserver = NotificationCenter.default.addObserver(forName: .didLoginNotification, object: nil, queue: .main) { [weak self] (_) in
-            self?.navigationController?.dismiss(animated: true)
+        loginObserver = NotificationCenter.default.addObserver(forName: .didLoginNotification, object: nil, queue: .main) { _ in
+            PresenterManager.shared.show(vc: .tabBarController)
         }
         
         GIDSignIn.sharedInstance()?.presentingViewController = self
@@ -226,7 +226,7 @@ class LoginViewController: UIViewController {
             
             let user = result.user
             print("Logged In user: \(user)")
-            self.navigationController?.dismiss(animated: true)
+            PresenterManager.shared.show(vc: .tabBarController)
         }
         
     }
@@ -320,8 +320,7 @@ extension LoginViewController: LoginButtonDelegate {
             
             // Use firebase to login facebook
             let credential = FacebookAuthProvider.credential(withAccessToken: token)
-            FirebaseAuth.Auth.auth().signIn(with: credential) { [weak self] (authResult, error) in
-                guard let self = self else { return }
+            FirebaseAuth.Auth.auth().signIn(with: credential) { (authResult, error) in
                 guard authResult != nil, error == nil else {
                     if let error = error {
                         print("Facebook credential login failed, MFA may be needed - \(error.localizedDescription)")
@@ -330,7 +329,7 @@ extension LoginViewController: LoginButtonDelegate {
                 }
                 
                 print("Successfullt logged user in")
-                self.navigationController?.dismiss(animated: true)
+                PresenterManager.shared.show(vc: .tabBarController)
             }
             
         }

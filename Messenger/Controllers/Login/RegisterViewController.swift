@@ -247,7 +247,7 @@ class RegisterViewController: UIViewController {
                         }
                     }
                 }
-                self.navigationController?.dismiss(animated: true, completion: nil)
+                PresenterManager.shared.show(vc: .tabBarController)
             }
         }
     }
