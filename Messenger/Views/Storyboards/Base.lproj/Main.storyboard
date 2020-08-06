@@ -45,7 +45,7 @@
         <scene sceneID="i6F-R1-E3d">
             <objects>
                 <navigationController automaticallyAdjustsScrollViewInsets="NO" id="hG0-6h-LRI" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Chats" selectedImage="message.fill" catalog="system" id="GVt-M0-Ckk"/>
+                    <tabBarItem key="tabBarItem" title="Chats" id="GVt-M0-Ckk"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="m0V-GF-Gcu">
                         <rect key="frame" x="0.0" y="44" width="414" height="96"/>
@@ -112,7 +112,6 @@
         </scene>
     </scenes>
     <resources>
-        <image name="message.fill" catalog="system" width="128" height="113"/>
         <image name="person.fill" catalog="system" width="128" height="120"/>
     </resources>
 </document>

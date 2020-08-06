@@ -39,7 +39,7 @@ struct ChatAppUser {
 
 final class DatabaseManager {
     static let shared = DatabaseManager()
-    private init() {}
+    //private init() {}
     private let database = Database.database().reference()
     private let currentEmail = FirebaseAuth.Auth.auth().currentUser?.email
     
@@ -341,7 +341,7 @@ extension DatabaseManager {
     }
     
     /// Fetches and returns all conversations for the user with passed in email
-    func getAllConversations(for email: String, completion: @escaping ((Result<[Conversation], Error>) -> Void)) {
+    public func getAllConversations(for email: String, completion: @escaping ((Result<[Conversation], Error>) -> Void)) {
         database.child("\(email)/conversations").observe(.value) { (snapshot) in
             guard let value = snapshot.value as? [[String: Any]] else {
                 completion(.failure(DatabaseError.failedToFetch))
@@ -374,14 +374,12 @@ extension DatabaseManager {
     }
     
     /// Gets all messages for a given conversation
-    func getAllMessagesForConversation(with id: String, completion: @escaping ((Result<[Message], Error>) -> Void)) {
+    public func getAllMessagesForConversation(with id: String, completion: @escaping ((Result<[Message], Error>) -> Void)) {
         database.child("\(id)/messages").observe(.value) { (snapshot) in
             guard let value = snapshot.value as? [[String: Any]] else {
                 completion(.failure(DatabaseError.failedToFetch))
                 return
             }
-            
-            print("Messages Input: \(value.count)")
             
             let messages: [Message] = value.compactMap({ dictionary in
                 guard let name = dictionary["name"] as? String,
@@ -436,14 +434,13 @@ extension DatabaseManager {
 
             })
             
-            print("Messages out: \(messages.count)")
             completion(.success(messages))
             
         }
     }
     
     /// Sends a message with target conversation and message
-    func sendMessage(to conversationId: String, otherUserEmail: String, name: String, newMessage: Message, completion: @escaping ((Bool) -> Void)) {
+    public func sendMessage(to conversationId: String, otherUserEmail: String, name: String, newMessage: Message, completion: @escaping ((Bool) -> Void)) {
         
         // append messge to target conversation
         database.child("\(conversationId)/messages").observeSingleEvent(of: .value) { [weak self] snapshot in
@@ -495,6 +492,22 @@ extension DatabaseManager {
                 "is_read": false
             ]
             
+            let newConversationData: [String: Any] = [
+                "id": conversationId,
+                "other_user_email": otherUserEmail,
+                "name": name,
+                "latest_message": [
+                    "date": dateString,
+                    "message": message,
+                    "is_read": false
+                ]
+            ]
+            
+            let recipentConversationInfo = RecipientInfo(otherUserEmail: otherUserEmail,
+                                                         conversationId: conversationId,
+                                                         dateString: dateString,
+                                                         message: message)
+            
             currentMessages.append(newMessageEntry)
             
             // update message to conversation
@@ -507,11 +520,25 @@ extension DatabaseManager {
                 // update sender latest message
                 self.database.child("\(safeEmail)/conversations").observeSingleEvent(of: .value) { snapshot in
                     guard var currentUserConversations = snapshot.value as? [[String: Any]] else {
+                        
+                        // Handle for nil, incase deleted, create new conversation entry
+                        self.database.child("\(safeEmail)/conversations").setValue([newConversationData]) { (error, _) in
+                            guard error == nil else {
+                                completion(false)
+                                return
+                            }
+                            
+                            self.updateLatestRecipientConversation(recipentInfo: recipentConversationInfo, newConversationData: newConversationData) { success in
+                                completion(success)
+                            }
+                        }
+                        
                         completion(false)
                         return
                     }
                     
                     // Find target conversation and then update
+                    var loopCount = 0
                     for (index, conversation) in currentUserConversations.enumerated() {
                         if let currentId = conversation["id"] as? String, currentId == conversationId {
                             print("Find out the value....")
@@ -523,52 +550,158 @@ extension DatabaseManager {
                             currentUserConversations[index]["latest_message"] = updatedValue
                             break
                         }
+                        loopCount += 1
                     }
                     
-                    // update to sender
-                    self.database.child("\(safeEmail)/conversations").setValue(currentUserConversations) { (error, _) in
-                        guard error == nil else {
-                            completion(false)
-                            return
+                    
+                    // Handle for converation not include, incase deleted---
+                    if currentUserConversations.count == loopCount {
+                        var conversations = currentUserConversations
+                        conversations.append(newConversationData)
+                        self.database.child("\(safeEmail)/conversations").setValue(conversations) { (error1, _) in
+                            if let error1 = error1 {
+                                print("Failed to append conversation, \(error1.localizedDescription)")
+                                completion(false)
+                            }
+                            
+                            self.updateLatestRecipientConversation(recipentInfo: recipentConversationInfo, newConversationData: newConversationData) { success in
+                                completion(success)
+                            }
+                            
                         }
-                        
-                        // update recipent latest message--------------------------
-                        self.database.child("\(otherUserEmail)/conversations").observeSingleEvent(of: .value) { snapshot in
-                            guard var currentUserConversations = snapshot.value as? [[String: Any]] else {
+                    } else {
+                        // update to sender
+                        self.database.child("\(safeEmail)/conversations").setValue(currentUserConversations) { (error, _) in
+                            guard error == nil else {
+                                print("Love yourself")
                                 completion(false)
                                 return
                             }
                             
-                            // Find target conversation and then update
-                            for (index, conversation) in currentUserConversations.enumerated() {
-                                if let currentId = conversation["id"] as? String, currentId == conversationId {
-                                    print("Find out the value....")
-                                    let updatedValue: [String: Any] = [
-                                        "date": dateString,
-                                        "message": message,
-                                        "is_read": false
-                                    ]
-                                    currentUserConversations[index]["latest_message"] = updatedValue
-                                    break
-                                }
+                            print("Love everything")
+                            self.updateLatestRecipientConversation(recipentInfo: recipentConversationInfo, newConversationData: newConversationData) { success in
+                                completion(success)
                             }
-                            
-                            // update to recipent
-                            self.database.child("\(otherUserEmail)/conversations").setValue(currentUserConversations) { (error, _) in
-                                guard error == nil else {
-                                    completion(false)
-                                    return
-                                }
-                                completion(true)
-                            }
-                            
                         }
-
                     }
-
                 }
-                
             }
         }
     }
+    
+    
+    struct RecipientInfo {
+        let otherUserEmail: String
+        let conversationId: String
+        let dateString: String
+        let message: String
+    }
+    
+    private func updateLatestRecipientConversation(recipentInfo: RecipientInfo, newConversationData: [String: Any], completion: @escaping ((Bool) -> Void)) {
+        // update recipent latest message--------------------------
+        self.database.child("\(recipentInfo.otherUserEmail)/conversations").observeSingleEvent(of: .value) { [weak self] snapshot in
+            guard var currentUserConversations = snapshot.value as? [[String: Any]] else {
+                // incase otherUserEmail has no conversation
+                self?.database.child("\(recipentInfo.otherUserEmail)/conversations").setValue([newConversationData], withCompletionBlock: { (error, _) in
+                    guard error == nil else {
+                        completion(false)
+                        return
+                    }
+                    
+                    completion(true)
+                })
+                return
+            }
+            
+            // Find target conversation and then update
+            for (index, conversation) in currentUserConversations.enumerated() {
+                if let currentId = conversation["id"] as? String, currentId == recipentInfo.conversationId {
+                    print("Find out the value...")
+                    let updatedValue: [String: Any] = [
+                        "date": recipentInfo.dateString,
+                        "message": recipentInfo.message,
+                        "is_read": false
+                    ]
+                    currentUserConversations[index]["latest_message"] = updatedValue
+                    break
+                }
+            }
+            
+            // update to recipent
+            self?.database.child("\(recipentInfo.otherUserEmail)/conversations").setValue(currentUserConversations) { (error, _) in
+                guard error == nil else {
+                    completion(false)
+                    return
+                }
+                completion(true)
+            }
+            
+        }
+    }
+    
+    
+    /// Delete conversation
+    public func deleteConversation(conversationId: String, completion: @escaping (Bool) -> Void) {
+        guard let currentEmail = currentEmail else { return }
+        let safeEmail = DatabaseManager.shared.safeEmail(email: currentEmail)
+        
+        print("Deleting conversation with id: \(conversationId)")
+        
+        // Get all conversations for current user
+        // Delete conversation in collection with target id
+        // Reset those conversations for the user in database
+        let ref = database.child("\(safeEmail)/conversations")
+        
+        ref.observeSingleEvent(of: .value) { snapshot in
+            if var conversations = snapshot.value as? [[String: Any]] {
+                for (index, conversation) in conversations.enumerated() {
+                    if let id = conversation["id"] as? String, id == conversationId {
+                        print("Found convesation to delete")
+                        conversations.remove(at: index)
+                        ref.setValue(conversations) { (error, _) in
+                            guard error == nil else {
+                                completion(false)
+                                print("Failed to write new conversation array")
+                                return
+                            }
+                            
+                            //FIXME: - Send notification message to notify
+                            
+                            print("Deleted conversation")
+                            completion(true)
+                        }
+                        
+                        break
+                    }
+                    
+                }
+            }
+        }
+    }
+    
+    public func getConversationId(with targetRecipientEmail: String, completion: @escaping (Result<String?, Error>) -> Void) {
+        guard let currentEmail = currentEmail else { return }
+        let safeEmail = DatabaseManager.shared.safeEmail(email: currentEmail)
+        
+        database.child("\(targetRecipientEmail)/conversations").observeSingleEvent(of: .value) { snapshot in
+            guard let collection = snapshot.value as? [[String: Any]] else {
+                completion(.failure(DatabaseError.failedToFetch))
+                return
+            }
+            
+            // iterate and find conversationId with target other_user_email
+            for conversation in collection {
+                if let conversationId = conversation["id"] as? String,
+                    let otherUserEmail = conversation["other_user_email"] as? String, otherUserEmail == safeEmail {
+                    completion(.success(conversationId))
+                    return
+                }
+            }
+            
+            completion(.success(nil))
+        }
+    }
+    
+    
+    
 }

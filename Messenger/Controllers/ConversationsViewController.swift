@@ -112,18 +112,62 @@ class ConversationsViewController: UIViewController {
         let name = result.name
         let email = result.email
         
-        let vc = ChatViewController(with: email, id: nil)
-        vc.isNewConveration = true
-        vc.title = name
-        vc.navigationItem.largeTitleDisplayMode = .never
-        navigationController?.pushViewController(vc, animated: true)
+        // Check in database if conversation with these two users exists
+        // if it does, reuse conversation id
+        // otherwise use existing code
+        DatabaseManager.shared.getConversationId(with: email) { [weak self] result in
+            guard let self = self else { return }
+            
+            switch result {
+            case .success(let conversationId):
+                if conversationId == nil {
+                    print("I am in...")
+                    let vc = ChatViewController(with: email, id: nil)
+                    vc.isNewConveration = true
+                    vc.title = name
+                    vc.navigationItem.largeTitleDisplayMode = .never
+                    self.navigationController?.pushViewController(vc, animated: true)
+                } else {
+                    let vc = ChatViewController(with: email, id: conversationId)
+                    vc.title = name
+                    vc.navigationItem.largeTitleDisplayMode = .never
+                    self.navigationController?.pushViewController(vc, animated: true)
+                }
+                
+            case .failure(let error):
+                print("Failed to fetch data or there is no conversation , \(error)")
+                let vc = ChatViewController(with: email, id: nil)
+                vc.isNewConveration = true
+                vc.title = name
+                vc.navigationItem.largeTitleDisplayMode = .never
+                self.navigationController?.pushViewController(vc, animated: true)
+            }
+        }
+        
+        
+        
     }
     
     // MARK: - Selectors
     @objc private func didTapComposeButton() {
         let vc = NewConversationViewController()
         vc.completion = { [weak self] result in
-            self?.createNewConversation(result: result)
+            guard let self = self else { return }
+            
+            let currentConversations = self.conversations
+            
+            if let targetConversation = currentConversations.first(where: { $0.otherUserEmail == result.email }) {
+                // Go to existing conversation
+                let vc = ChatViewController(with: targetConversation.otherUserEmail, id: targetConversation.id)
+                vc.title = result.name
+                vc.navigationItem.largeTitleDisplayMode = .never
+                self.navigationController?.pushViewController(vc, animated: true)
+            } else {
+                // Create new conversation
+                self.createNewConversation(result: result)
+            }
+            
+            
         }
         let nav = UINavigationController(rootViewController: vc)
         present(nav, animated: true)
@@ -144,8 +188,6 @@ extension ConversationsViewController: UITableViewDataSource{
         return cell
     }
     
-    
-    
 }
 
 // MARK: - UITableViewDelegate
@@ -153,9 +195,10 @@ extension ConversationsViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         let model = conversations[indexPath.row]
-        
-        print(model.id)
-        
+        openConversation(model)
+    }
+    
+    private func openConversation(_ model: Conversation) {
         let vc = ChatViewController(with: model.otherUserEmail, id: model.id)
         vc.title = model.name
         vc.navigationItem.largeTitleDisplayMode = .never
@@ -164,5 +207,26 @@ extension ConversationsViewController: UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return 120
+    }
+    
+    func tableView(_ tableView: UITableView, editingStyleForRowAt indexPath: IndexPath) -> UITableViewCell.EditingStyle {
+        return .delete
+    }
+    
+    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        let selectedConversation = conversations[indexPath.row]
+        
+        if editingStyle == .delete {
+            tableView.beginUpdates()
+            DatabaseManager.shared.deleteConversation(conversationId: selectedConversation.id) { [weak self] success in
+                guard let self = self else { return }
+                if success {
+                    self.conversations.remove(at: indexPath.row)
+                    self.tableView.deleteRows(at: [indexPath], with: .left)
+                }
+            }
+            
+            tableView.endUpdates()
+        }
     }
 }
