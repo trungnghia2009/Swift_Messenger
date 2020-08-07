@@ -10,15 +10,19 @@ import UIKit
 
 class ProfileTableViewCell: UITableViewCell {
 
-    override func awakeFromNib() {
-        super.awakeFromNib()
-        // Initialization code
+    static let reuseIdentifier = String(describing: ProfileTableViewCell.self)
+    
+    func setup(with viewModel: ProfileViewModel) {
+        textLabel?.text = viewModel.title
+        
+        switch viewModel.viewModelType {
+        case .info:
+            textLabel?.textAlignment = .left
+            selectionStyle = .none
+        case .logout:
+            textLabel?.textColor = .red
+            textLabel?.textAlignment = .center
+        }
     }
-
-    override func setSelected(_ selected: Bool, animated: Bool) {
-        super.setSelected(selected, animated: animated)
-
-        // Configure the view for the selected state
-    }
-
+    
 }

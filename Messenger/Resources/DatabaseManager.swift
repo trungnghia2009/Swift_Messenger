@@ -10,6 +10,7 @@ import Foundation
 import FirebaseDatabase
 import FirebaseAuth
 import MessageKit
+import CoreLocation
 
 struct UploadMessage {
     let id: String
@@ -37,9 +38,11 @@ struct ChatAppUser {
     }
 }
 
+/// Do jobs on firebase database
 final class DatabaseManager {
+    
     static let shared = DatabaseManager()
-    //private init() {}
+    private init() {}
     private let database = Database.database().reference()
     private let currentEmail = FirebaseAuth.Auth.auth().currentUser?.email
     
@@ -57,10 +60,20 @@ extension DatabaseManager {
     
     public enum DatabaseError: Error {
         case failedToFetch
+        
+        public var localizedDescription: String {
+            switch self {
+            case .failedToFetch:
+                return "Failed to fetch"
+            }
+        }
     }
     
     
-    /// Check user if exists
+    /// Check if user exists for given email
+    /// Parameters
+    /// - `email`: Target email to be checked'
+    /// - `completion`: Async closure to return with result
     public func userExists(with email: String, completion: @escaping ((Bool) -> Void)) {
         
         let safeEmail = email.replacingOccurrences(of: ".", with: "-")
@@ -82,7 +95,7 @@ extension DatabaseManager {
         database.child(user.safeEmail).setValue([
             "first_name": user.firstName,
             "last_name": user.lastName,
-            ], withCompletionBlock: { (error, _) in
+            ], withCompletionBlock: { [weak self] (error, _) in
                 guard error == nil else {
                     print("Failed to write to database")
                     completion(false)
@@ -90,7 +103,7 @@ extension DatabaseManager {
                 }
                 
                 // upload data to users, if not existing add new
-                self.database.child("users").observeSingleEvent(of: .value) { (snapshot) in
+                self?.database.child("users").observeSingleEvent(of: .value) { (snapshot) in
                     if var usersCollection = snapshot.value as? [[String: String]] {
                         // append to user dictionary
                         let newElement = [
@@ -99,7 +112,7 @@ extension DatabaseManager {
                         ]
                         usersCollection.append(newElement)
                         
-                        self.database.child("users").setValue(usersCollection, withCompletionBlock: { (error, _) in
+                        self?.database.child("users").setValue(usersCollection, withCompletionBlock: { (error, _) in
                             guard error == nil else {
                                 completion(false)
                                 return
@@ -114,7 +127,7 @@ extension DatabaseManager {
                                 "email": user.safeEmail
                             ]
                         ]
-                        self.database.child("users").setValue(newCollection, withCompletionBlock: { (error, _) in
+                        self?.database.child("users").setValue(newCollection, withCompletionBlock: { (error, _) in
                             guard error == nil else {
                                 completion(false)
                                 return
@@ -417,8 +430,21 @@ extension DatabaseManager {
                                       placeholderImage: placeholder,
                                       size: CGSize(width: 200, height: 150))
                     kind = .video(media)
+                case "location":
+                    let locationComponents = content.components(separatedBy: ", ")
+                    guard let longitude = locationComponents[0].toDouble(),
+                        let latitude = locationComponents[1].toDouble()
+                    else {
+                        kind = .text(content)
+                        break
+                    }
+                    
+                    let location = Location(location: CLLocation(latitude: latitude, longitude: longitude),
+                                            size: CGSize(width: 300, height: 300))
+                    kind = .location(location)
+                    
                 default:
-                    kind = . text(content)
+                    kind = .text(content)
                 }
                 guard let finalKind = kind else { return nil}
 
@@ -470,8 +496,9 @@ extension DatabaseManager {
                 if let targetUrlString = mediaItem.url?.absoluteString {
                     message = targetUrlString
                 }
-            case .location(_):
-                break
+            case .location(let locationData):
+                let location = locationData.location
+                message = "\(location.coordinate.longitude), \(location.coordinate.latitude)"
             case .emoji(_):
                 break
             case .audio(_):
@@ -573,12 +600,10 @@ extension DatabaseManager {
                         // update to sender
                         self.database.child("\(safeEmail)/conversations").setValue(currentUserConversations) { (error, _) in
                             guard error == nil else {
-                                print("Love yourself")
                                 completion(false)
                                 return
                             }
                             
-                            print("Love everything")
                             self.updateLatestRecipientConversation(recipentInfo: recipentConversationInfo, newConversationData: newConversationData) { success in
                                 completion(success)
                             }

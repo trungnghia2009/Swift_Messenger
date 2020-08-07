@@ -10,7 +10,7 @@ import UIKit
 import FirebaseAuth
 import JGProgressHUD
 
-class ConversationsViewController: UIViewController {
+final class ConversationsViewController: UIViewController {
 
     // MARK: - Properties
     private let currentEmail = FirebaseAuth.Auth.auth().currentUser?.email
@@ -25,7 +25,7 @@ class ConversationsViewController: UIViewController {
         label.textAlignment = .center
         label.textColor = .gray
         label.font = .systemFont(ofSize: 21, weight: .medium)
-        label.isHidden = true
+        label.isHidden = false
         return label
     }()
     
@@ -35,13 +35,16 @@ class ConversationsViewController: UIViewController {
         configureNavigationBar()
         configureUI()
         configureTableView()
-        fetchConversations()
         startListeningForConversations()
     }
     
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         tableView.frame = view.bounds
+        noConversationsLabel.frame = CGRect(x: view.width / 4,
+                                            y: (view.height - 200) / 2,
+                                            width: view.width / 2,
+                                            height: 200)
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -56,38 +59,12 @@ class ConversationsViewController: UIViewController {
         
     }
     
-    // MARK: - APIs
-    private func fetchConversations() {
-        tableView.isHidden = false
-    }
     
     // MARK: - Helpers
-    private func startListeningForConversations() {
-        guard let currentEmail = currentEmail else { return }
-        let safeEmail = DatabaseManager.shared.safeEmail(email: currentEmail)
-        
-        DatabaseManager.shared.getAllConversations(for: safeEmail) { [weak self] (result) in
-            guard let self = self else { return }
-            
-            switch result {
-            case .success(let conversations):
-                guard !conversations.isEmpty else { return }
-                self.conversations = conversations
-                
-                DispatchQueue.main.async {
-                    self.tableView.reloadData()
-                }
-                
-            case .failure(let error):
-                print("Failed to get all conversations, \(error.localizedDescription)")
-            }
-        }
-    }
-     
-    private func validateAuth() {
-        if FirebaseAuth.Auth.auth().currentUser == nil {
-            PresenterManager.shared.show(vc: .loginController)
-        }
+    private func configureNavigationBar() {
+        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .compose,
+                                                            target: self,
+                                                            action: #selector(didTapComposeButton))
     }
     
     private func configureTableView() {
@@ -102,10 +79,38 @@ class ConversationsViewController: UIViewController {
         view.addSubview(noConversationsLabel)
     }
     
-    private func configureNavigationBar() {
-        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .compose,
-                                                            target: self,
-                                                            action: #selector(didTapComposeButton))
+    private func startListeningForConversations() {
+        guard let currentEmail = currentEmail else { return }
+        let safeEmail = DatabaseManager.shared.safeEmail(email: currentEmail)
+        
+        DatabaseManager.shared.getAllConversations(for: safeEmail) { [weak self] (result) in
+            guard let self = self else { return }
+            
+            switch result {
+            case .success(let conversations):
+                guard !conversations.isEmpty else {
+                    self.noConversationsLabel.isHidden = false
+                    self.tableView.isHidden = true
+                    return
+                }
+                
+                self.conversations = conversations
+                self.noConversationsLabel.isHidden = true
+                self.tableView.isHidden = false
+                self.tableView.reloadData()
+                
+            case .failure(let error):
+                print("Failed to get all conversations, \(error.localizedDescription)")
+                self.tableView.isHidden = true
+                self.noConversationsLabel.isHidden = false
+            }
+        }
+    }
+     
+    private func validateAuth() {
+        if FirebaseAuth.Auth.auth().currentUser == nil {
+            PresenterManager.shared.show(vc: .loginController)
+        }
     }
     
     private func createNewConversation(result: SearchResult) {
@@ -214,15 +219,20 @@ extension ConversationsViewController: UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        let selectedConversation = conversations[indexPath.row]
+        
         
         if editingStyle == .delete {
             tableView.beginUpdates()
+            
+            let selectedConversation = conversations[indexPath.row]
+            conversations.remove(at: indexPath.row)
+            self.tableView.deleteRows(at: [indexPath], with: .left)
+            
             DatabaseManager.shared.deleteConversation(conversationId: selectedConversation.id) { [weak self] success in
-                guard let self = self else { return }
-                if success {
-                    self.conversations.remove(at: indexPath.row)
-                    self.tableView.deleteRows(at: [indexPath], with: .left)
+                if !success {
+                    print("failed to delete")
+                    // Add conversation back again...
+                    self?.conversations.insert(selectedConversation, at: indexPath.row)
                 }
             }
             

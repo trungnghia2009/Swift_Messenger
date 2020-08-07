@@ -11,31 +11,32 @@ import UIKit
 extension UIView {
     
     public var width: CGFloat {
-        return self.frame.size.width
+        return frame.size.width
     }
     
     public var height: CGFloat {
-        return self.frame.size.height
+        return frame.size.height
     }
     
     public var top: CGFloat {
-        return self.frame.origin.y
+        return frame.origin.y
     }
     
     public var bottom: CGFloat {
-        return self.frame.size.height + self.frame.origin.y
+        return frame.size.height + frame.origin.y
     }
     
     public var left: CGFloat {
-        return self.frame.origin.x
+        return frame.origin.x
     }
     
     public var right: CGFloat {
-        return self.frame.size.width + self.frame.origin.x
+        return frame.size.width + frame.origin.x
     }
 }
 
 extension Notification.Name {
+    /// Notification when Google user login
     static let didLoginNotification = Notification.Name("didLoginNotification")
 }
 
@@ -58,5 +59,11 @@ extension UIImage {
         guard let result = UIGraphicsGetImageFromCurrentImageContext() else { return nil }
         UIGraphicsEndImageContext()
         return result
+    }
+}
+
+extension String {
+    func toDouble() -> Double? {
+        return NumberFormatter().number(from: self)?.doubleValue
     }
 }

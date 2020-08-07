@@ -12,28 +12,42 @@ import FBSDKLoginKit
 import GoogleSignIn
 import SDWebImage
 
-private let reuseIdentifier = "cell"
-
-class ProfileViewController: UIViewController {
+final class ProfileViewController: UIViewController {
     
     // MARK: - Properties
     @IBOutlet weak var tableView: UITableView!
     private let email = FirebaseAuth.Auth.auth().currentUser?.email
-    private let data = ["Log Out"]
+    private var data = [ProfileViewModel]()
     
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        configureNavigationBar()
+        configureDataSource()
         configureTableView()
     }
     
     // MARK: - Helpers
     private func configureTableView() {
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: reuseIdentifier)
+        tableView.register(ProfileTableViewCell.self, forCellReuseIdentifier: ProfileTableViewCell.reuseIdentifier)
         tableView.tableFooterView = UIView()
         tableView.tableHeaderView = createTableHeader()
         tableView.delegate = self
         tableView.dataSource = self
+    }
+    
+    private func configureDataSource() {
+        guard let name = UserDefaults.standard.value(forKey: "name") as? String,
+            let email = FirebaseAuth.Auth.auth().currentUser?.email else { return }
+        data.append(ProfileViewModel(viewModelType: .info, title: "Name: \(name)", handler: nil))
+        data.append(ProfileViewModel(viewModelType: .info, title: "Email: \(email)", handler: nil))
+        data.append(ProfileViewModel(viewModelType: .logout, title: "Log Out", handler: { [weak self] in
+            self?.logout()
+        }))
+    }
+    
+    private func configureNavigationBar() {
+        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .edit, target: self, action: #selector(didTapEditButton))
     }
     
     private func showAlert(message: String, handler: ((UIAlertAction) -> Void)? ) {
@@ -60,7 +74,7 @@ class ProfileViewController: UIViewController {
         
         let headerView = UIView(frame: CGRect(x: 0,
                                         y: 0,
-                                        width: self.view.width,
+                                        width: view.width,
                                         height: 300))
         headerView.backgroundColor = .link
         let imageView = UIImageView(frame: CGRect(x: (headerView.width - 150) / 2,
@@ -75,11 +89,10 @@ class ProfileViewController: UIViewController {
         imageView.layer.masksToBounds = true
         headerView.addSubview(imageView)
         
-        StorageManager.shared.downloadURL(for: path) { [weak self](result) in
+        StorageManager.shared.downloadURL(for: path) { result in
             switch result {
             case .success(let url):
-                self?.downloadImage(imageView: imageView, url: url)
-                //imageView.sd_setImage(with: url)
+                imageView.sd_setImage(with: url)
             case .failure(let error):
                 print("Failed to get download url, \(error.localizedDescription)")
             }
@@ -88,18 +101,26 @@ class ProfileViewController: UIViewController {
         return headerView
     }
     
-    private func downloadImage(imageView: UIImageView, url: URL) {
-        URLSession.shared.dataTask(with: url) { (data, _, error) in
-            guard let data = data, error == nil else {
-                print("Failed to get data")
-                return
-            }
+    private func logout() {
+        showAlert(message: "Do you want to log out ?") { _ in
+            // Logout facebook
+            FBSDKLoginKit.LoginManager().logOut()
             
-            let image = UIImage(data: data)
-            DispatchQueue.main.async {
-                imageView.image = image
+            // Logout google
+            GIDSignIn.sharedInstance()?.signOut()
+            
+            do {
+                try FirebaseAuth.Auth.auth().signOut()
+                PresenterManager.shared.show(vc: .loginController)
+            } catch {
+                print("Failed to log out, \(error.localizedDescription)")
             }
-        }.resume()
+        }
+    }
+    
+    // MARK: - Selectors
+    @objc private func didTapEditButton() {
+        
     }
 
 }
@@ -112,10 +133,9 @@ extension ProfileViewController: UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: reuseIdentifier, for: indexPath)
-        cell.textLabel?.text = data[indexPath.row]
-        cell.textLabel?.textAlignment = .center
-        cell.textLabel?.textColor = .red
+        let viewModel = data[indexPath.row]
+        let cell = tableView.dequeueReusableCell(withIdentifier: ProfileTableViewCell.reuseIdentifier, for: indexPath) as! ProfileTableViewCell
+        cell.setup(with: viewModel)
         return cell
     }
 }
@@ -124,27 +144,8 @@ extension ProfileViewController: UITableViewDataSource {
 extension ProfileViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        let selectedCell = data[indexPath.row]
+        data[indexPath.row].handler?()
         
-        switch selectedCell {
-        case "Log Out":
-            showAlert(message: "Do you want to log out ?") { _ in
-                
-                // Logout facebook
-                FBSDKLoginKit.LoginManager().logOut()
-                
-                // Logout google
-                GIDSignIn.sharedInstance()?.signOut()
-                
-                do {
-                    try FirebaseAuth.Auth.auth().signOut()
-                    PresenterManager.shared.show(vc: .loginController)
-                } catch {
-                    print("Failed to log out, \(error.localizedDescription)")
-                }
-            }
-        default:
-            break
-        }
     }
 }
+

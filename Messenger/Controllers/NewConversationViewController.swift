@@ -10,14 +10,9 @@ import UIKit
 import JGProgressHUD
 import FirebaseAuth
 
-struct SearchResult {
-    let name: String
-    let email: String
-}
-
 private let reuseIdentifier = "New Conversation Cell"
 
-class NewConversationViewController: UIViewController {
+final class NewConversationViewController: UIViewController {
 
     // MARK: - Properties
     private var users = [[String: String]]()
@@ -43,7 +38,7 @@ class NewConversationViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
         configureNavigationBar()
         configureUI()
         configureSearchBar()

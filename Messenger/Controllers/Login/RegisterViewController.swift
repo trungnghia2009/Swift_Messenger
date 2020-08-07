@@ -10,7 +10,7 @@ import UIKit
 import Firebase
 import JGProgressHUD
 
-class RegisterViewController: UIViewController {
+final class RegisterViewController: UIViewController {
     
     // MARK: - Properties
     private let spinner = JGProgressHUD(style: .dark)
@@ -43,7 +43,7 @@ class RegisterViewController: UIViewController {
         field.placeholder = "First Name..."
         field.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 5, height: 0))
         field.leftViewMode = .always
-        field.backgroundColor = .white
+        field.backgroundColor = .secondarySystemBackground
         return field
     }()
     
@@ -58,7 +58,7 @@ class RegisterViewController: UIViewController {
         field.placeholder = "Last Name..."
         field.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 5, height: 0))
         field.leftViewMode = .always
-        field.backgroundColor = .white
+        field.backgroundColor = .secondarySystemBackground
         return field
     }()
     
@@ -73,7 +73,7 @@ class RegisterViewController: UIViewController {
         field.placeholder = "Email Address..."
         field.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 5, height: 0))
         field.leftViewMode = .always
-        field.backgroundColor = .white
+        field.backgroundColor = .secondarySystemBackground
         return field
     }()
     
@@ -88,7 +88,7 @@ class RegisterViewController: UIViewController {
         field.placeholder = "Password..."
         field.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 5, height: 0))
         field.leftViewMode = .always
-        field.backgroundColor = .white
+        field.backgroundColor = .secondarySystemBackground
         field.isSecureTextEntry = true
         return field
     }()
@@ -108,7 +108,7 @@ class RegisterViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
         configureNavigationBar()
         configureUI()
     }
@@ -240,6 +240,7 @@ class RegisterViewController: UIViewController {
                                 
                             case .success(let downloadUrl):
                                 UserDefaults.standard.set(downloadUrl, forKey: "profile_picture_url")
+                                UserDefaults.standard.set("\(firstName) \(lastName)", forKey: "name") // store fullname
                                 print(downloadUrl)
                             case .failure(let error):
                                 print("Storage manager error, \(error)")
@@ -286,12 +287,12 @@ extension RegisterViewController: UIImagePickerControllerDelegate, UINavigationC
                                             message: "How would you like to select a picture?",
                                             preferredStyle: .actionSheet)
         actionSheet.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
-        actionSheet.addAction(UIAlertAction(title: "Take Photo", style: .default, handler: { [unowned self] _ in
-            self.presentCamera()
+        actionSheet.addAction(UIAlertAction(title: "Take Photo", style: .default, handler: { [weak self] _ in
+            self?.presentCamera()
         }))
 
-        actionSheet.addAction(UIAlertAction(title: "Chose Photo", style: .default, handler: { [unowned self] _ in
-            self.presentPhotoPicker()
+        actionSheet.addAction(UIAlertAction(title: "Chose Photo", style: .default, handler: { [weak self] _ in
+            self?.presentPhotoPicker()
         }))
         
         present(actionSheet, animated: true)
@@ -316,7 +317,7 @@ extension RegisterViewController: UIImagePickerControllerDelegate, UINavigationC
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         picker.dismiss(animated: true, completion: nil)
         let selectedImage = info[UIImagePickerController.InfoKey.editedImage] as? UIImage
-        self.imageView.image = selectedImage?.resizeWithWidth(width: 200)
+        imageView.image = selectedImage?.resizeWithWidth(width: 200)
         
     }
     

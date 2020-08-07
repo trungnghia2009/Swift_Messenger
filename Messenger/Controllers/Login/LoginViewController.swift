@@ -12,7 +12,7 @@ import FBSDKLoginKit
 import GoogleSignIn
 import JGProgressHUD
 
-class LoginViewController: UIViewController {
+final class LoginViewController: UIViewController {
 
     // MARK: - Properties
     private let spinner = JGProgressHUD(style: .dark)
@@ -41,7 +41,7 @@ class LoginViewController: UIViewController {
         field.placeholder = "Email Address..."
         field.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 5, height: 0))
         field.leftViewMode = .always
-        field.backgroundColor = .white
+        field.backgroundColor = .secondarySystemBackground
         return field
     }()
     
@@ -56,7 +56,7 @@ class LoginViewController: UIViewController {
         field.placeholder = "Password..."
         field.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 5, height: 0))
         field.leftViewMode = .always
-        field.backgroundColor = .white
+        field.backgroundColor = .secondarySystemBackground
         field.isSecureTextEntry = true
         return field
     }()
@@ -86,15 +86,16 @@ class LoginViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        view.backgroundColor = .systemBackground
         
         // Notification for passing data
-        loginObserver = NotificationCenter.default.addObserver(forName: .didLoginNotification, object: nil, queue: .main) { _ in
+        NotificationCenter.default.addObserver(forName: .didLoginNotification, object: nil, queue: .main) { _ in
             PresenterManager.shared.show(vc: .tabBarController)
         }
         
         GIDSignIn.sharedInstance()?.presentingViewController = self
         
-        view.backgroundColor = .white
+        
         configureNavigationBar()
         configureUI()
     }

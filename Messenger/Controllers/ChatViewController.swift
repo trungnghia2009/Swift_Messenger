@@ -10,56 +10,11 @@ import UIKit
 import MessageKit
 import InputBarAccessoryView
 import FirebaseAuth
-import SDWebImage
 import AVFoundation
 import AVKit
+import CoreLocation
 
-struct Message: MessageType {
-    var sender: SenderType
-    var messageId: String
-    var sentDate: Date
-    var kind: MessageKind
-}
-
-extension MessageKind {
-    var messageKindString: String {
-        switch self {
-        case .text(_):
-            return "text"
-        case .attributedText(_):
-            return "attributed_text"
-        case .photo(_):
-            return "photo"
-        case .video(_):
-            return "video"
-        case .location(_):
-            return "location"
-        case .emoji(_):
-            return "emoji"
-        case .audio(_):
-            return "audio"
-        case .contact(_):
-            return "contact"
-        case .custom(_):
-            return "custom"
-        }
-    }
-}
-
-struct Sender: SenderType {
-    var photoURL: String
-    var senderId: String
-    var displayName: String
-}
-
-struct Media: MediaItem {
-    var url: URL?
-    var image: UIImage?
-    var placeholderImage: UIImage
-    var size: CGSize
-}
-
-class ChatViewController: MessagesViewController {
+final class ChatViewController: MessagesViewController {
     
     // MARK: - Properties
    public static let dateFormatter: DateFormatter = {
@@ -70,11 +25,13 @@ class ChatViewController: MessagesViewController {
         return formatter
     }()
 
+    private var senderPhotoURL: URL?
+    private var otherUserPhotoURL: URL?
     
     var isNewConveration = false
     var isCamera = false
     let otherUserEmail: String
-    private let conversationId: String?
+    private var conversationId: String?
     private let currentEmail = FirebaseAuth.Auth.auth().currentUser?.email
     private var messages = [Message]()
     
@@ -87,10 +44,11 @@ class ChatViewController: MessagesViewController {
                       displayName: "Me")
     }()
     
+    
     // MARK: - Lifecycle
     init(with email: String, id: String?) {
-        self.otherUserEmail = email
-        self.conversationId = id
+        otherUserEmail = email
+        conversationId = id
         super.init(nibName: nil, bundle: nil)
         
         // Call only if having conversationId
@@ -161,10 +119,14 @@ class ChatViewController: MessagesViewController {
         let audioAction = UIAlertAction(title: "Audio", style: .default) { [weak self] _ in
             self?.presentAudioInputActionSheet()
         }
+        let locationAction = UIAlertAction(title: "Location", style: .default) { [weak self] _ in
+            self?.presentLocationPicker()
+        }
         let cancelAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
         actionSheet.addAction(photoAction)
         actionSheet.addAction(videoAction)
         actionSheet.addAction(audioAction)
+        actionSheet.addAction(locationAction)
         actionSheet.addAction(cancelAction)
         
         present(actionSheet, animated: true)
@@ -230,6 +192,41 @@ class ChatViewController: MessagesViewController {
     private func presentAudioInputActionSheet() {
         print("Handle audio..")
     }
+    
+    private func presentLocationPicker() {
+        let vc = LocationPickerViewController()
+        vc.completion = { [weak self] selectedCoordinates in
+            guard let self = self,
+                let selfSender = self.selfSender,
+                let messageId = self.createMessageId(),
+                let conversationId = self.conversationId,
+                let name = self.title else { return }
+            
+            let latitude: Double = selectedCoordinates.latitude
+            let longitude: Double = selectedCoordinates.longitude
+            print("Debug: long = \(longitude), lat = \(latitude)")
+            
+            let location = Location(location: CLLocation(latitude: latitude, longitude: longitude),
+                                 size: .zero)
+            
+            let message = Message(sender: selfSender,
+                                  messageId: messageId,
+                                  sentDate: Date(),
+                                  kind: .location(location))
+            
+            // Send Photo message
+            DatabaseManager.shared.sendMessage(to: conversationId, otherUserEmail: self.otherUserEmail, name: name, newMessage: message) { success in
+                if success {
+                    print("Sent location message")
+                } else {
+                    print("Failed to send location message")
+                }
+            }
+        }
+        let nav = UINavigationController(rootViewController: vc)
+        nav.modalPresentationStyle = .automatic
+        present(nav, animated: true)
+    }
 
 }
 
@@ -248,6 +245,8 @@ extension ChatViewController: InputBarAccessoryViewDelegate {
                               sentDate: Date(),
                               kind: .text(text))
         
+        messageInputBar.inputTextView.text = nil // Clear text
+        
         // Send message
         if isNewConveration {
             // create conversation in database
@@ -255,6 +254,9 @@ extension ChatViewController: InputBarAccessoryViewDelegate {
                 if success {
                     print("Message send")
                     self?.isNewConveration = false // Do not create conversation once was created
+                    let newConversationId = "conversation_\(message.messageId)"
+                    self?.conversationId = newConversationId
+                    self?.listenForMessages(id: newConversationId)
                 } else {
                     print("Failed to send")
                 }
@@ -263,7 +265,7 @@ extension ChatViewController: InputBarAccessoryViewDelegate {
             // append to existing conversation data
             guard let conversationId = conversationId,
                 let name = self.title else { return }
-            DatabaseManager.shared.sendMessage(to: conversationId, otherUserEmail: otherUserEmail, name: name, newMessage: message) { (success) in
+            DatabaseManager.shared.sendMessage(to: conversationId, otherUserEmail: otherUserEmail, name: name, newMessage: message) { success in
                 if success {
                     print("Message send")
                 } else {
@@ -413,7 +415,7 @@ extension ChatViewController: UIImagePickerControllerDelegate, UINavigationContr
     }
 }
 
-// MARK: - MessageKit
+// MARK: - MessageKit Collection
 extension ChatViewController: MessagesDataSource, MessagesLayoutDelegate, MessagesDisplayDelegate {
     func currentSender() -> SenderType {
         if let sender = selfSender {
@@ -443,13 +445,66 @@ extension ChatViewController: MessagesDataSource, MessagesLayoutDelegate, Messag
             break
         }
     }
+    
+    // Configure message background
+    func backgroundColor(for message: MessageType, at indexPath: IndexPath, in messagesCollectionView: MessagesCollectionView) -> UIColor {
+        let sender = message.sender
+        if sender.senderId == selfSender?.senderId {
+            // Our message that we've sent
+            return .link
+        }
+        return .secondarySystemBackground
+    }
+    
+    // Configure message avatar
+    func configureAvatarView(_ avatarView: AvatarView, for message: MessageType, at indexPath: IndexPath, in messagesCollectionView: MessagesCollectionView) {
+        let sender = message.sender
+        let path = "images/\(sender.senderId)_profile_picture.png"
+        
+        if sender.senderId == selfSender?.senderId {
+            // Show our image
+            if let currentUserImageURL = senderPhotoURL {
+                avatarView.sd_setImage(with: currentUserImageURL)
+            } else {
+                // fetch url
+                StorageManager.shared.downloadURL(for: path) { [weak self] result in
+                    switch result {
+                        
+                    case .success(let url):
+                        self?.senderPhotoURL = url
+                        avatarView.sd_setImage(with: url)
+                    case .failure(let error):
+                        print("Faild to get image avatar, \(error)")
+                    }
+                }
+            }
+            
+        } else {
+            // Show other user image
+            if let otherUserImageURL = otherUserPhotoURL {
+                avatarView.sd_setImage(with: otherUserImageURL)
+            } else {
+                // fetch url
+                StorageManager.shared.downloadURL(for: path) { [weak self] result in
+                    switch result {
+                        
+                    case .success(let url):
+                        self?.otherUserPhotoURL = url
+                        avatarView.sd_setImage(with: url)
+                    case .failure(let error):
+                        print("Faild to get image avatar, \(error)")
+                    }
+                }
+            }
+        }
+    }
+    
 }
 
 // MARK: - MessageCellDelegate - MessageKit
 extension ChatViewController: MessageCellDelegate {
     func didTapImage(in cell: MessageCollectionViewCell) {
         guard let indexPath = messagesCollectionView.indexPath(for: cell) else { return }
-        
         let selectedMessage = messages[indexPath.section]
         
         switch selectedMessage.kind {
@@ -458,8 +513,7 @@ extension ChatViewController: MessageCellDelegate {
             guard let imageUrl = media.url else { return }
             let vc = UINavigationController(rootViewController: PhotoViewerViewController(with: imageUrl))
             vc.title = "Photo"
-            vc.modalPresentationStyle = .fullScreen
-            vc.modalTransitionStyle = .crossDissolve
+            vc.modalPresentationStyle = .automatic
             present(vc, animated: true)
         case .video(let media):
             guard let videoUrl = media.url else { return }
@@ -468,6 +522,23 @@ extension ChatViewController: MessageCellDelegate {
             present(vc, animated: true) {
                 vc.player?.play()
             }
+        default:
+            break
+        }
+    }
+    
+    func didTapMessage(in cell: MessageCollectionViewCell) {
+        guard let indexPath = messagesCollectionView.indexPath(for: cell) else { return }
+        let selectedMessage = messages[indexPath.section]
+        
+        switch selectedMessage.kind {
+        case .location(let locationData):
+            let coordinates = locationData.location.coordinate
+            let vc = LocationPickerViewController(coordinates: coordinates, isPickable: false)
+            let nav = UINavigationController(rootViewController: vc)
+            nav.modalPresentationStyle = .automatic
+            present(nav, animated: true)
+            
         default:
             break
         }

@@ -8,7 +8,7 @@
 
 import UIKit
 
-class TabBarController: UITabBarController {
+final class TabBarController: UITabBarController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -16,12 +16,12 @@ class TabBarController: UITabBarController {
     }
     
     func setTabBarItems() {
-        let myTabBarItem1 = (self.tabBar.items?[0])! as UITabBarItem
+        let myTabBarItem1 = (tabBar.items?[0])! as UITabBarItem
         myTabBarItem1.image = UIImage(systemName: "message")
         myTabBarItem1.selectedImage = UIImage(systemName: "message.fill")
         myTabBarItem1.title = "Chats"
         
-        let myTabBarItem2 = (self.tabBar.items?[1])! as UITabBarItem
+        let myTabBarItem2 = (tabBar.items?[1])! as UITabBarItem
         myTabBarItem2.image = UIImage(systemName: "person")
         myTabBarItem2.selectedImage = UIImage(systemName: "person.fill")
         myTabBarItem2.title = "Profile"

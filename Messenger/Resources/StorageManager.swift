@@ -11,6 +11,7 @@ import FirebaseStorage
 
 typealias UploadFileCompletion = (Result<String, Error>) -> Void
 
+/// Allow you to get, fetch, upload files to firebase storage
 final class StorageManager {
     
     enum StorageErrors: Error{
