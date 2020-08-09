@@ -27,7 +27,7 @@ class PresenterManager {
         case .tabBarController:
             viewController = UIStoryboard(name: "Main", bundle: nil).instantiateViewController(identifier: "tabBarController")
         case .loginController:
-            viewController = UINavigationController(rootViewController: LoginViewController())
+            viewController = UINavigationController(rootViewController: LoginViewController(alignment: .top))
         }
         
         if let sceneDelegate =  UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate, let window = sceneDelegate.window  {

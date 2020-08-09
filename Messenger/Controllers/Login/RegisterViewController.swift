@@ -111,6 +111,7 @@ final class RegisterViewController: UIViewController {
         view.backgroundColor = .systemBackground
         configureNavigationBar()
         configureUI()
+        configureNotificationObservers()
     }
     
     override func viewDidLayoutSubviews() {
@@ -163,6 +164,8 @@ final class RegisterViewController: UIViewController {
         
         
         view.addSubview(scrollView)
+        scrollView.alwaysBounceVertical = true
+        scrollView.keyboardDismissMode = .interactive
         scrollView.addSubview(imageView)
         scrollView.addSubview(firstNameField)
         scrollView.addSubview(lastNameField)
@@ -179,6 +182,11 @@ final class RegisterViewController: UIViewController {
     
     private func configureNavigationBar() {
         navigationItem.title = "Create Account"
+    }
+    
+    private func configureNotificationObservers() {
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow), name: UIResponder.keyboardWillShowNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide), name: UIResponder.keyboardWillHideNotification, object: nil)
     }
     
     private func alertUserRegisterError(message: String = "Please enter all information to create a new account") {
@@ -257,6 +265,22 @@ final class RegisterViewController: UIViewController {
         presentPhotoActionSheet()
     }
     
+    @objc private func keyboardWillShow() {
+        print("Keyboard will show")
+        // For iPhone 6s,7,8
+        if scrollView.frame.size.height == 667 {
+            scrollView.frame.origin.y = -110
+        } else {
+            scrollView.frame.origin.y = -50
+        }
+    }
+    
+    @objc private func keyboardWillHide() {
+        print("Keyboard will hide")
+        scrollView.frame.origin.y = 0
+        
+    }
+    
     
 }
 
@@ -315,7 +339,10 @@ extension RegisterViewController: UIImagePickerControllerDelegate, UINavigationC
     }
     
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-        picker.dismiss(animated: true, completion: nil)
+        picker.dismiss(animated: true) { [weak self] in
+            self?.view.endEditing(false)
+        }
+        
         let selectedImage = info[UIImagePickerController.InfoKey.editedImage] as? UIImage
         imageView.image = selectedImage?.resizeWithWidth(width: 200)
         

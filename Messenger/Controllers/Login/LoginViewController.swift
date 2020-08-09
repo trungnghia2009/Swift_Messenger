@@ -6,22 +6,16 @@
 //  Copyright © 2020 trungnghia. All rights reserved.
 //
 
-import UIKit
+import LBTATools
 import FirebaseAuth
 import FBSDKLoginKit
 import GoogleSignIn
 import JGProgressHUD
 
-final class LoginViewController: UIViewController {
+final class LoginViewController: LBTAFormController {
 
     // MARK: - Properties
     private let spinner = JGProgressHUD(style: .dark)
-    
-    private let scrollView: UIScrollView = {
-        let scrollView = UIScrollView()
-        scrollView.clipsToBounds = true
-        return scrollView
-    }()
     
     private let imageView: UIImageView = {
         let iv = UIImageView()
@@ -86,18 +80,13 @@ final class LoginViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        configureNavigationBar()
+        configureUI()
         
         // Notification for passing data
         NotificationCenter.default.addObserver(forName: .didLoginNotification, object: nil, queue: .main) { _ in
             PresenterManager.shared.show(vc: .tabBarController)
         }
-        
-        GIDSignIn.sharedInstance()?.presentingViewController = self
-        
-        
-        configureNavigationBar()
-        configureUI()
     }
     
     // Release memory
@@ -106,61 +95,41 @@ final class LoginViewController: UIViewController {
             NotificationCenter.default.removeObserver(observer)
         }
     }
-    
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        scrollView.frame = view.bounds
-        
-        
-        let size = scrollView.width / 3
-        imageView.frame = CGRect(x: (scrollView.width - size) / 2,
-                                 y: 20,
-                                 width: size,
-                                 height: size)
-        
-        emailField.frame = CGRect(x: 30,
-                                  y: imageView.bottom + 10,
-                                  width: scrollView.width - 60,
-                                  height: 52)
-        
-        passwordField.frame = CGRect(x: 30,
-                                     y: emailField.bottom + 10,
-                                     width: scrollView.width - 60,
-                                     height: 52)
-        
-        loginButton.frame = CGRect(x: 30,
-                                   y: passwordField.bottom + 10,
-                                   width: scrollView.width - 60,
-                                   height: 52)
-        
-        facebookLoginButton.frame = CGRect(x: 30,
-                                           y: loginButton.bottom + 30,
-                                           width: scrollView.width - 60,
-                                           height: 40)
-        
-        googleLoginButton.frame = CGRect(x: 30,
-                                         y: facebookLoginButton.bottom + 10,
-                                         width: scrollView.width - 60,
-                                         height: 40)
-        
-    }
-    
+
     
     // MARK: - Helpers
     private func configureUI() {
+        view.backgroundColor = .systemBackground
+        
         emailField.delegate = self
         passwordField.delegate = self
-        
         facebookLoginButton.delegate = self
+        GIDSignIn.sharedInstance()?.presentingViewController = self
         
-        view.addSubview(scrollView)
-        scrollView.addSubview(imageView)
-        scrollView.addSubview(emailField)
-        scrollView.addSubview(passwordField)
-        scrollView.addSubview(loginButton)
-        scrollView.addSubview(facebookLoginButton)
-        scrollView.addSubview(googleLoginButton)
+        scrollView.alwaysBounceVertical = true
+        formContainerStackView.axis = .vertical
+        formContainerStackView.spacing = 10
+        formContainerStackView.layoutMargins = .init(top: 20, left: 24, bottom: 0, right: 24)
         
+        let size = UIScreen.main.bounds.width / 3
+        formContainerStackView.addArrangedSubview(imageView)
+        imageView.constrainHeight(size)
+        
+        formContainerStackView.addArrangedSubview(emailField)
+        emailField.constrainHeight(52)
+        
+        formContainerStackView.addArrangedSubview(passwordField)
+        passwordField.constrainHeight(52)
+        
+        formContainerStackView.addArrangedSubview(loginButton)
+        loginButton.constrainHeight(52)
+        
+        let blankSpace = UIView()
+        formContainerStackView.addArrangedSubview(blankSpace)
+        blankSpace.constrainHeight(20)
+        
+        formContainerStackView.addArrangedSubview(facebookLoginButton)
+        formContainerStackView.addArrangedSubview(googleLoginButton)
     }
     
     

@@ -9,11 +9,11 @@
 import UIKit
 import FirebaseAuth
 import JGProgressHUD
+import SDWebImage
 
 final class ConversationsViewController: UIViewController {
 
     // MARK: - Properties
-    private let currentEmail = FirebaseAuth.Auth.auth().currentUser?.email
     private let spinner = JGProgressHUD(style: .dark)
     private let tableView = UITableView()
     
@@ -29,9 +29,13 @@ final class ConversationsViewController: UIViewController {
         return label
     }()
     
+    private let profileImageView = ProfileImageView(frame: .zero)
+    
+    
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        validateAuth()
         configureNavigationBar()
         configureUI()
         configureTableView()
@@ -49,22 +53,32 @@ final class ConversationsViewController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        validateAuth()
-        
-        guard let fullName = UserDefaults.standard.value(forKey: "name") as? String else {
-            print("NO get anything.....")
-            return
-        }
-        print("Fullname is: \(fullName)")
-        
     }
     
     
     // MARK: - Helpers
     private func configureNavigationBar() {
+        navigationItem.title = "Chats"
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .compose,
                                                             target: self,
                                                             action: #selector(didTapComposeButton))
+        
+        navigationItem.leftBarButtonItem = UIBarButtonItem(customView: profileImageView)
+        profileImageView.delegate = self
+        
+        guard let currentEmail = FirebaseAuth.Auth.auth().currentUser?.email else { return }
+        let safeEmail = DatabaseManager.shared.safeEmail(email: currentEmail)
+        
+        let path = "images/\(safeEmail)_profile_picture.png"
+        StorageManager.shared.downloadURL(for: path) { [weak self] result in
+            switch result {
+            case .success(let url):
+                self?.profileImageView.url = url
+            case .failure(let error):
+                print("Cannot get profile image, \(error)")
+                self?.profileImageView.image = UIImage(systemName: "person")
+            }
+        }
     }
     
     private func configureTableView() {
@@ -80,7 +94,7 @@ final class ConversationsViewController: UIViewController {
     }
     
     private func startListeningForConversations() {
-        guard let currentEmail = currentEmail else { return }
+        guard let currentEmail = FirebaseAuth.Auth.auth().currentUser?.email else { return }
         let safeEmail = DatabaseManager.shared.safeEmail(email: currentEmail)
         
         DatabaseManager.shared.getAllConversations(for: safeEmail) { [weak self] (result) in
@@ -148,8 +162,6 @@ final class ConversationsViewController: UIViewController {
                 self.navigationController?.pushViewController(vc, animated: true)
             }
         }
-        
-        
         
     }
     
@@ -238,5 +250,12 @@ extension ConversationsViewController: UITableViewDelegate {
             
             tableView.endUpdates()
         }
+    }
+}
+
+// MARK: - ProfileImageViewDelegate
+extension ConversationsViewController: ProfileImageViewDelegate {
+    func didTapProfileImage() {
+        print("Tapped profile image ...")
     }
 }

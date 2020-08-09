@@ -44,7 +44,6 @@ final class DatabaseManager {
     static let shared = DatabaseManager()
     private init() {}
     private let database = Database.database().reference()
-    private let currentEmail = FirebaseAuth.Auth.auth().currentUser?.email
     
     func safeEmail(email: String) -> String {
         let safeEmail = email.replacingOccurrences(of: ".", with: "-")
@@ -203,7 +202,7 @@ extension DatabaseManager {
     
     /// Creates a new conversation with target user email and first message sent
     public func createNewConversation(with otherUserEmail: String, name: String, firstMessage: Message, completion: @escaping ((Bool) -> Void)) {
-        guard let currentEmail = currentEmail,
+        guard let currentEmail = FirebaseAuth.Auth.auth().currentUser?.email,
             let currentName = UserDefaults.standard.value(forKey: "name") as? String
         else { return }
         
@@ -391,7 +390,7 @@ extension DatabaseManager {
         database.child("\(id)/messages").observe(.value) { (snapshot) in
             guard let value = snapshot.value as? [[String: Any]] else {
                 completion(.failure(DatabaseError.failedToFetch))
-                return
+                return 
             }
             
             let messages: [Message] = value.compactMap({ dictionary in
@@ -477,7 +476,7 @@ extension DatabaseManager {
                 return
             }
             
-            guard let currentEmail = self.currentEmail else { return }
+            guard let currentEmail = FirebaseAuth.Auth.auth().currentUser?.email else { return }
             let safeEmail = DatabaseManager.shared.safeEmail(email: currentEmail)
             let messageDate = newMessage.sentDate
             let dateString = ChatViewController.dateFormatter.string(from: messageDate)
@@ -667,7 +666,7 @@ extension DatabaseManager {
     
     /// Delete conversation
     public func deleteConversation(conversationId: String, completion: @escaping (Bool) -> Void) {
-        guard let currentEmail = currentEmail else { return }
+        guard let currentEmail = FirebaseAuth.Auth.auth().currentUser?.email else { return }
         let safeEmail = DatabaseManager.shared.safeEmail(email: currentEmail)
         
         print("Deleting conversation with id: \(conversationId)")
@@ -705,7 +704,9 @@ extension DatabaseManager {
     }
     
     public func getConversationId(with targetRecipientEmail: String, completion: @escaping (Result<String?, Error>) -> Void) {
-        guard let currentEmail = currentEmail else { return }
+        guard let currentEmail = FirebaseAuth.Auth.auth().currentUser?.email else {
+            return
+        }
         let safeEmail = DatabaseManager.shared.safeEmail(email: currentEmail)
         
         database.child("\(targetRecipientEmail)/conversations").observeSingleEvent(of: .value) { snapshot in

@@ -16,7 +16,6 @@ final class ProfileViewController: UIViewController {
     
     // MARK: - Properties
     @IBOutlet weak var tableView: UITableView!
-    private let email = FirebaseAuth.Auth.auth().currentUser?.email
     private var data = [ProfileViewModel]()
     
     // MARK: - Lifecycle
@@ -67,7 +66,7 @@ final class ProfileViewController: UIViewController {
     }
     
     private func createTableHeader() -> UIView? {
-        guard let email = email else { return nil }
+        guard let email = FirebaseAuth.Auth.auth().currentUser?.email else { return nil }
         let safeEmail = DatabaseManager.shared.safeEmail(email: email)
         let fileName = safeEmail + "_profile_picture.png"
         let path = "images/" + fileName

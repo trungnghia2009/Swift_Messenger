@@ -17,6 +17,7 @@ final class LocationPickerViewController: UIViewController {
     var coordinates: CLLocationCoordinate2D? {
         didSet {
             guard let coordinates = coordinates else { return }
+            navigationItem.rightBarButtonItem?.isEnabled = true
             print("Current selected location: \(coordinates)")
         }
     }
@@ -48,11 +49,11 @@ final class LocationPickerViewController: UIViewController {
             navigationItem.title = "Pick Location"
             navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .cancel, target: self, action: #selector(cancelButtonTapped))
             navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Send", style: .done, target: self, action: #selector(sendButtonTapped))
+            navigationItem.rightBarButtonItem?.isEnabled = false
             let gesture = UITapGestureRecognizer(target: self, action: #selector(didTapMap(_:)))
             gesture.numberOfTouchesRequired = 1
             gesture.numberOfTapsRequired = 1
             mapView.addGestureRecognizer(gesture)
-            coordinates = mapView.userLocation.coordinate
         } else {
             navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .cancel, target: self, action: #selector(cancelButtonTapped))
             navigationItem.title = "Show Location"
